@@ -25,8 +25,9 @@
   "scripts": {
     "serve": "vue-cli-service serve examples/serve.js",
     "build": "vue-cli-service build --target lib --dest dist src/index.js",
-    "lint": "vue-cli-service lint"
-  },
+    "lint": "vue-cli-service lint",
+    "prepare": "npm run build"
+  },  
   "dependencies": {
     "smoothscroll-polyfill": "^0.4.4"
   },
