@@ -57,6 +57,14 @@
 
         <div :style="style.tail"></div>
       </div>
+      <div class="vhl-pagination">
+        <span
+          v-for="(item, index) in paginationDots"
+          :key="index"
+          @click="goToPage(index * size)"
+          :class="{ 'active': isActiveDot(index), 'transitioning': isTransitioning(index) }"
+        ></span>
+      </div>
     </div>
   </div>
 </template>
@@ -388,6 +396,44 @@ export default {
       stopAutoPlay();
     });
 
+    const paginationDots = computed(() => {
+    const totalPages = Math.ceil(length.value / size.value);
+    const lastPageIncomplete = length.value % size.value !== 0;
+    
+    // Adjust total pages if the last page is incomplete
+    const adjustedTotalPages = lastPageIncomplete ? totalPages - 1 : totalPages;
+
+    return Array.from({ length: adjustedTotalPages }, (_, index) => index);
+  });
+
+    // Method to navigate to a specific page
+    const goToPage = (index) => {
+      const newPosition = index * size.value;
+      go(newPosition);
+    };
+
+    // Method to determine if a dot should be active
+    const isActiveDot = (index) => {
+      const totalPages = Math.ceil(length.value / size.value);
+      const currentPage = Math.floor(position.value / size.value);
+      
+      // Check if this dot corresponds to the last page
+      if (index === totalPages - 1) {
+        // For the last page, check if the current position is within the range of the last page
+        return position.value >= index * size.value && position.value < length.value;
+      } else {
+        // For other pages, return true if the index of the dot matches the current page
+        return index === currentPage;
+      }
+    };
+
+    // Method to determine if a dot is transitioning
+    const isTransitioning = (index) => {
+      const currentPage = Math.floor(position.value / size.value);
+      const nextPage = Math.floor((position.value + size.value - 1) / size.value);
+      return index === currentPage || index === nextPage;
+    };
+
     return {
       position,
       width,
@@ -404,6 +450,11 @@ export default {
       prev,
       next,
       scrollHandler,
+      paginationDots,
+      goToPage,
+      size,
+      isActiveDot,
+      isTransitioning,
     };
   },
 };
@@ -441,13 +492,13 @@ export default {
 }
 
 .vhl-btn-left {
-  margin-left: -24px;
+  margin-left: -50px;
   margin-right: auto;
 }
 
 .vhl-btn-right {
   margin-left: auto;
-  margin-right: -24px;
+  margin-right: -50px;
 }
 
 .vhl-container {
@@ -466,6 +517,11 @@ export default {
   scroll-behavior: smooth;
   -webkit-overflow-scrolling: touch;
   scroll-snap-type: x mandatory;
+  scrollbar-width: none;
+}
+
+.vhl-list::-webkit-scrollbar {
+  width: 0; /* Hide scrollbar for Chrome, Safari, and Opera */
 }
 
 .vhl-item {
@@ -483,5 +539,31 @@ export default {
 .vhl-list > * {
   scroll-snap-align: start;
   flex-shrink: 0;
+}
+
+.vhl-pagination {
+  display: flex;
+  justify-content: center;
+  margin-top: 16px;
+}
+
+.vhl-pagination span {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%; /* Change the value to create a pill shape */
+  background-color: #ccc; /* Default color for inactive dots */
+  margin: 0 4px;
+  cursor: pointer;
+  transition: background-color 0.3s ease;
+}
+
+.vhl-pagination span.active {
+  width: 30px;
+  background-color: #0284C7; /* Color for active dot */
+  border-radius: 12px;
+}
+
+.vhl-pagination span.transitioning {
+  transition: background-color 0.3s ease;
 }
 </style>
