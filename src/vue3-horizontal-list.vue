@@ -432,10 +432,6 @@ export default {
   align-items: center;
   justify-content: center;
 
-  border-radius: 24px;
-  background: white;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12), 0 1px 2px rgba(0, 0, 0, 0.24);
-
   z-index: 2;
 }
 
