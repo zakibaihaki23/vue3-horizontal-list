@@ -509,8 +509,6 @@ export default {
 
 .vhl-list {
   display: flex;
-  padding-bottom: 24px;
-  margin-bottom: -24px;
 
   overflow-x: scroll;
   overflow-y: hidden;
