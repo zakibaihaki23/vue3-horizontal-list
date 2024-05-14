@@ -61,8 +61,8 @@
         <span
           v-for="(item, index) in paginationDots"
           :key="index"
-          @click="goToPage(index * size)"
-          :class="{ 'active': isActiveDot(index), 'transitioning': isTransitioning(index) }"
+          @click="goToPage(index)"
+          :class="{ 'active': isActiveDot(index) }"
         ></span>
       </div>
     </div>
@@ -83,49 +83,17 @@ import {
 export default {
   name: "vue3HorizontalList",
   props: {
-    /**
-     * items to display in horizontal-list
-     */
     items: {
       type: Array,
       required: true,
     },
-
-    /**
-     * item.class = css class for each individual item.
-     * item.padding = padding between each item in the list.
-     *
-     * list.class = css class for the parent of item
-     * list.windowed = maximum width of the list it can extend to, basically the container max-width
-     * list.padding = padding of the list, if container < windowed what is the left-right padding of the list
-     *
-     * responsive breakpoints to calculate how many items to show in the list at each width interval
-     * Examples:
-     * [{size: 5}] show 5 items regardless
-     * [{end: 992, size: 3}},{size: 4}] < 992 show 3 items, else show 4 items
-     * [{end: 576, size: 1}, {start: 576, end: 992, size: 2}, {size: 3}] < 576 show 1, 576 - 992 show 2, else show 3
-     *
-     * These are the default responsive fallback, if you don't have a catch all, it will fallback to
-     * [{end: 576, size: 1},
-     * {start: 576, end: 768, size: 2},
-     * {start: 768, end: 992, size: 3},
-     * {start: 992, end: 1200, size: 4},
-     * {start: 1200, size: 5}]
-     */
     options: {
       type: Object,
       required: false,
     },
   },
   setup(props) {
-    /**
-     * Current item position of list
-     */
     const position = ref(0);
-
-    /**
-     * Width of item, list and window
-     */
     const width = reactive({
       container: 0,
       window: 576,
@@ -140,13 +108,7 @@ export default {
       width.container = container.value.clientWidth;
     };
 
-    /**
-     * Debounce timer of the scroll
-     */
     const scrollTimer = ref(null);
-    /**
-     * Interval of the autoPlay
-     */
     const autoPlayInterval = ref(null);
 
     const dataItems = computed(() => {
@@ -160,15 +122,12 @@ export default {
       ];
     });
 
-    const length = computed(() => {
-      return dataItems.value.length;
-    });
+    const length = computed(() => dataItems.value.length);
 
     const options = computed(() => {
       return {
         navigation: {
           start: props.options?.navigation?.start ?? 992,
-          // TODO(fuxing): Deprecate this in favor of navigation slot
           color: props.options?.navigation?.color ?? "#000",
         },
         item: {
@@ -182,8 +141,6 @@ export default {
         },
         responsive: [
           ...(props.options?.responsive ?? []),
-
-          // Fallback default responsive
           { end: 576, size: 1 },
           { start: 576, end: 768, size: 2 },
           { start: 768, end: 992, size: 3 },
@@ -217,62 +174,37 @@ export default {
         tail: {},
       };
 
-      // Full Screen Mode
       if (width.window < options.value.list.windowed) {
         style.container.marginLeft = `-${options.value.list.padding}px`;
         style.container.marginRight = `-${options.value.list.padding}px`;
 
-        style.item.width = `${
-          (workingWidth.value - (size.value - 1) * options.value.item.padding) /
-          size.value
-        }px`;
+        style.item.width = `${(workingWidth.value - (size.value - 1) * options.value.item.padding) / size.value}px`;
         style.item.paddingLeft = `${options.value.list.padding}px`;
         style.item.paddingRight = `${options.value.item.padding}px`;
         style.item.marginRight = `-${options.value.list.padding}px`;
-      }
-
-      // Windowed Mode
-      else {
+      } else {
         style.item.paddingLeft = `${options.value.item.padding / 2}px`;
         style.item.paddingRight = `${options.value.item.padding / 2}px`;
 
         style.container.marginLeft = `-${options.value.item.padding / 2}px`;
         style.container.marginRight = `-${options.value.item.padding / 2}px`;
 
-        style.item.width = `${
-          (workingWidth.value - (size.value - 1) * options.value.item.padding) /
-          size.value
-        }px`;
+        style.item.width = `${(workingWidth.value - (size.value - 1) * options.value.item.padding) / size.value}px`;
       }
 
       return style;
     });
 
-    const itemWidth = computed(() => {
-      return (
-        (workingWidth.value - (size.value - 1) * options.value.item.padding) /
-        size.value
-      );
-    });
+    const itemWidth = computed(() => (workingWidth.value - (size.value - 1) * options.value.item.padding) / size.value);
 
-    /**
-     * @return number actual width of the container
-     */
     const workingWidth = computed(() => {
-      // Full Screen Mode
       if (width.window < options.value.list.windowed) {
         return width.window - options.value.list.padding * 2;
-      }
-
-      // Windowed Mode
-      else {
+      } else {
         return width.container;
       }
     });
 
-    /**
-     * @return visible items in horizontal list at the current width/state
-     */
     const size = computed(() => {
       const width = workingWidth.value;
       return options.value.responsive.find((value) => {
@@ -283,98 +215,71 @@ export default {
       }).size;
     });
 
-    /**
-     * @return boolean whether there is prev set of items for navigation
-     * @private internal use
-     */
-    const hasNext = computed(() => {
-      return length.value > position.value + size.value;
-    });
+    const totalPages = computed(() => Math.ceil(length.value / size.value));
 
-    /**
-     * @return boolean whether there is next set of items for navigation
-     * @private internal use
-     */
-    const hasPrev = computed(() => {
-      return position.value > 0;
-    });
+    const hasNext = computed(() => position.value < totalPages.value - 1);
+    const hasPrev = computed(() => position.value > 0);
 
-    /**
-     * @param position of item to scroll to
-     */
     const go = (positionTo) => {
-      const maxPosition = length.value - size.value;
-      position.value = positionTo > maxPosition ? maxPosition : positionTo;
-
-      const left =
-        itemWidth.value * position.value +
-        position.value * options.value.item.padding;
+      position.value = Math.max(0, Math.min(positionTo, totalPages.value - 1));
+      const left = (itemWidth.value + options.value.item.padding) * position.value * size.value;
       list.value.scrollTo({ top: 0, left: left, behavior: "smooth" });
     };
 
-    /**
-     * Run autoPlay slide show
-     */
     const runAutoPlay = () => {
       autoPlayInterval.value = setInterval(() => {
-        if (
-          options.value.autoplay.repeat &&
-          position.value === length.value - size.value
-        ) {
-          position.value = 0;
-          go(position.value);
+        if (options.value.autoplay.repeat && position.value === totalPages.value - 1) {
+          go(0);
         } else {
-          position.value = position.value + 1;
-          go(position.value);
+          go(position.value + 1);
         }
       }, options.value.autoplay.speed);
     };
 
-    /**
-     * Stop autoPlay slide show
-     */
     const stopAutoPlay = () => {
       if (autoPlayInterval.value) {
         clearInterval(autoPlayInterval.value);
       }
     };
 
-    /**
-     * Go to a set of previous items
-     */
     const prev = () => {
-      go(position.value - size.value);
+      if (hasPrev.value) {
+        go(position.value - 1);
+      }
     };
 
-    /**
-     * Go to a set of next items
-     */
     const next = () => {
-      go(position.value + size.value);
+      if (hasNext.value) {
+        go(position.value + 1);
+      }
     };
 
-    /**
-     * On horizontal scroll re-evaluate the actual position
-     */
     const scrollHandler = () => {
       clearTimeout(scrollTimer.value);
 
-      //Renew timer
       scrollTimer.value = setTimeout(() => {
         const parentLeftOffset = list.value.getBoundingClientRect().left;
+        let closestIndex = 0;
+        let smallestDiff = Infinity;
 
-        let items = dataItems.value.map((_, index) => {
-          const itemLeftOffset = item.value[index].getBoundingClientRect().left;
-          return Math.abs(itemLeftOffset - parentLeftOffset);
+        dataItems.value.forEach((_, index) => {
+          const itemElement = item.value[index];
+          if (itemElement) {
+            const itemLeftOffset = itemElement.getBoundingClientRect().left;
+            const diff = Math.abs(itemLeftOffset - parentLeftOffset);
+
+            if (diff < smallestDiff) {
+              smallestDiff = diff;
+              closestIndex = index;
+            }
+          }
         });
 
-        position.value = items.indexOf(Math.min(...items));
+        position.value = Math.floor(closestIndex / size.value);
       }, 50);
     };
 
     onMounted(() => {
-      // TODO(fuxing): Need to re-do this
-      // Added a simple SSR fix, need to look into it for optimization in the future
       require("smoothscroll-polyfill").polyfill();
 
       $resize();
@@ -396,43 +301,13 @@ export default {
       stopAutoPlay();
     });
 
-    const paginationDots = computed(() => {
-    const totalPages = Math.ceil(length.value / size.value);
-    const lastPageIncomplete = length.value % size.value !== 0;
-    
-    // Adjust total pages if the last page is incomplete
-    const adjustedTotalPages = lastPageIncomplete ? totalPages - 1 : totalPages;
+    const paginationDots = computed(() => Array.from({ length: totalPages.value }, (_, index) => index));
 
-    return Array.from({ length: adjustedTotalPages }, (_, index) => index);
-  });
-
-    // Method to navigate to a specific page
     const goToPage = (index) => {
-      const newPosition = index * size.value;
-      go(newPosition);
+      go(index);
     };
 
-    // Method to determine if a dot should be active
-    const isActiveDot = (index) => {
-      const totalPages = Math.ceil(length.value / size.value);
-      const currentPage = Math.floor(position.value / size.value);
-      
-      // Check if this dot corresponds to the last page
-      if (index === totalPages - 1) {
-        // For the last page, check if the current position is within the range of the last page
-        return position.value >= index * size.value && position.value < length.value;
-      } else {
-        // For other pages, return true if the index of the dot matches the current page
-        return index === currentPage;
-      }
-    };
-
-    // Method to determine if a dot is transitioning
-    const isTransitioning = (index) => {
-      const currentPage = Math.floor(position.value / size.value);
-      const nextPage = Math.floor((position.value + size.value - 1) / size.value);
-      return index === currentPage || index === nextPage;
-    };
+    const isActiveDot = (index) => Math.floor(position.value) === index;
 
     return {
       position,
@@ -454,7 +329,6 @@ export default {
       goToPage,
       size,
       isActiveDot,
-      isTransitioning,
     };
   },
 };
@@ -559,9 +433,5 @@ export default {
   width: 30px;
   background-color: #0284C7; /* Color for active dot */
   border-radius: 12px;
-}
-
-.vhl-pagination span.transitioning {
-  transition: background-color 0.3s ease;
 }
 </style>
